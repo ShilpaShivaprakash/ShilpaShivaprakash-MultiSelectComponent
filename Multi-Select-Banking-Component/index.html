@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Select Component</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+
+<body>
+  <main class="page">
+    <h1>Multi Select Tags</h1>
+    <div id="multi-select-root"></div>
+  </main>
+
+  <script type="module">
+    import { createSmartSelect } from "./smart-select.js";
+    import { selectInputData } from "../data/selectInputData.js"
+
+    createSmartSelect({
+      root: document.getElementById("multi-select-root"),
+      label: "Multi Select Tags",
+      placeholder: "Select",
+      multi: true,
+      items: selectInputData,
+      getId: item => item.id,
+      getLabel: item => item.displayName,
+      getSubtitle: item => item.currency,
+      getMeta: item => ({ type: item.type }),
+      onChange: selectedItems => {
+      }
+    });
+  </script>
+</body>
+</html>

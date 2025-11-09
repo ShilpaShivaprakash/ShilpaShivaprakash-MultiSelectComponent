@@ -1,0 +1,304 @@
+:root {
+  --ss-font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --ss-color-bg: #f5f7fa;
+  --ss-color-text: #111827;
+  --ss-color-muted: #6b7280;
+  --ss-color-soft: #9ca3af;
+  --ss-color-border: #059669;
+  --ss-color-border-soft: #d1d5db;
+  --ss-color-pill: #059669;
+  --ss-radius: 4px;
+  --ss-shadow-focus: 0 0 0 2px rgba(5, 150, 105, 0.18);
+  --ss-shadow-dropdown:
+    0 18px 40px rgba(15, 23, 42, 0.18),
+    0 2px 4px rgba(15, 23, 42, 0.12);
+  --ss-transition-fast: 120ms ease-out;
+  --ss-font-size-label: 12px;
+  --ss-font-size-body: 13px;
+  --ss-font-size-pill: 11px;
+  --ss-font-size-arrow: 10px;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--ss-font-family);
+  background-color: var(--ss-color-bg);
+  color: var(--ss-color-text);
+}
+
+.page {
+  max-width: 960px;
+  margin: 32px auto;
+  padding: 24px;
+}
+
+h1 {
+  margin: 0 0 16px;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+/* Multi Select wrapper */
+
+.smart-select {
+  width: 520px;
+  max-width: 100%;
+}
+
+.smart-select-label {
+  display: block;
+  margin-bottom: 4px;
+  color: #374151;
+  font-size: var(--ss-font-size-label);
+  font-weight: 600;
+}
+
+/* Control (top box) */
+
+.smart-select-control {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 6px 40px 6px 10px;
+  border-radius: var(--ss-radius);
+  border: 2px solid var(--ss-color-border);
+  background-color: #ffffff;
+  box-sizing: border-box;
+  cursor: pointer;
+  transition:
+    box-shadow var(--ss-transition-fast),
+    border-color var(--ss-transition-fast),
+    background-color var(--ss-transition-fast);
+}
+
+.smart-select-control.is-open {
+  box-shadow: var(--ss-shadow-focus);
+}
+
+.smart-select-control:focus-visible {
+  outline: 2px solid var(--ss-color-border);
+  outline-offset: 2px;
+}
+
+.smart-select-placeholder {
+  color: var(--ss-color-soft);
+  font-size: var(--ss-font-size-body);
+}
+
+.smart-select-summary {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--ss-font-size-body);
+  color: var(--ss-color-text);
+}
+
+.smart-select-count-pill {
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background-color: var(--ss-color-pill);
+  color: #ffffff;
+  font-size: var(--ss-font-size-pill);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+}
+
+.smart-select-clear {
+  position: absolute;
+  right: 22px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--ss-color-muted);
+  font-size: 14px;
+  display: none;
+}
+
+.smart-select-clear.visible {
+  display: inline-flex;
+}
+
+.smart-select-arrow {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: var(--ss-font-size-arrow);
+  color: var(--ss-color-muted);
+  transition: transform var(--ss-transition-fast);
+}
+
+.smart-select-control.is-open .smart-select-arrow {
+  transform: translateY(-50%) rotate(180deg);
+}
+
+/* Selected tags row */
+
+.smart-select-selected-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.smart-select-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  border-radius: var(--ss-radius);
+  background-color: #f9fafb;
+  border: 1px solid var(--ss-color-border-soft);
+  font-size: var(--ss-font-size-body);
+  color: var(--ss-color-text);
+  box-sizing: border-box;
+}
+
+.smart-select-chip-remove {
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--ss-color-muted);
+  line-height: 1;
+}
+
+/* Dropdown */
+
+.smart-select-dropdown {
+  position: fixed;
+  max-width: 520px;
+  min-width: 260px;
+  max-height: 280px;
+  padding: 10px;
+  margin-top: 4px;
+  background-color: #ffffff;
+  border-radius: var(--ss-radius);
+  border: 2px solid var(--ss-color-border);
+  box-shadow: var(--ss-shadow-dropdown);
+  display: none;
+  flex-direction: column;
+  box-sizing: border-box;
+  z-index: 9999;
+}
+
+.smart-select-dropdown.visible {
+  display: flex;
+}
+
+/* Search row */
+
+.smart-select-search-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 6px;
+  margin-bottom: 4px;
+}
+
+.smart-select-search-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  padding: 4px 0;
+  font-size: 14px;
+}
+
+.smart-select-search-input::placeholder {
+  color: var(--ss-color-soft);
+}
+
+.smart-select-search-clear {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--ss-color-soft);
+}
+
+/* List */
+
+.smart-select-list {
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+/* Items */
+
+.smart-select-item {
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  border-radius: var(--ss-radius);
+  cursor: pointer;
+  font-size: var(--ss-font-size-body);
+  color: var(--ss-color-text);
+  transition:
+    background-color var(--ss-transition-fast),
+    color var(--ss-transition-fast);
+}
+
+.smart-select-item input[type="checkbox"] {
+  pointer-events: none;
+}
+
+.smart-select-subtitle {
+  display: block;
+  font-size: 11px;
+  color: var(--ss-color-muted);
+}
+
+/* States */
+
+.smart-select-item:hover {
+  background-color: #f3f4ff;
+  color: var(--ss-color-text);
+}
+
+.smart-select-item.is-active:not(.is-selected) {
+  background-color: #e5e7eb;
+  color: var(--ss-color-text);
+}
+
+.smart-select-item.is-selected {
+  background-color: #ecfdf5;
+  color: #065f46;
+}
+
+.smart-select-mark {
+  color: var(--ss-color-pill);
+  font-weight: 600;
+}
+
+/* Responsive */
+
+@media (max-width: 640px) {
+  .page {
+    padding: 16px;
+    margin: 16px auto;
+  }
+
+  .smart-select {
+    width: 100%;
+  }
+
+  .smart-select-dropdown {
+    left: 8px !important;
+    right: 8px !important;
+    max-width: none;
+  }
+}
