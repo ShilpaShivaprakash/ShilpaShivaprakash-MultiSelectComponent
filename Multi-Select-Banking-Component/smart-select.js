@@ -4,31 +4,145 @@ export const createSmartSelect = (options = {}) => {
   const dom = createDom(config.root, config)
   const emit = createEmitter(dom.control)
 
-  function renderAll(query = "") {
-    renderState(dom, state)
-    renderSelectedBar(dom, state, toggleSelect)
-    renderList(dom, state, config, query, toggleSelect)
+  const emitChange = () => {
+    const ids = Array.from(state.selected)
+    const items = state.items
+      .filter(item => state.selected.has(item.id))
+      .map(item => item.raw)
+
+    if (config.onChange) {
+      config.onChange(items)
+    }
+
+    emit("change", { value: ids, items })
   }
 
-  function openDropdown() {
+  const renderState = () => {
+    const selected = state.items.filter(i => state.selected.has(i.id))
+
+    if (!selected.length) {
+      dom.placeholder.style.display = "inline"
+      dom.summary.style.display = "none"
+      dom.clearBtn.classList.remove("visible")
+    } else {
+      dom.placeholder.style.display = "none"
+      dom.summary.style.display = "inline-flex"
+      dom.summary.innerHTML = ""
+
+      const count = el("span", "smart-select-count-pill", String(selected.length))
+      const text = document.createElement("span")
+      text.textContent = "Selected"
+
+      dom.summary.appendChild(count)
+      dom.summary.appendChild(text)
+      dom.clearBtn.classList.add("visible")
+    }
+
+    syncListSelection(dom, state)
+  }
+
+  const renderSelectedBar = () => {
+    const bar = dom.selectedBar
+    bar.innerHTML = ""
+
+    const selectedItems = state.items.filter(i => state.selected.has(i.id))
+    if (!selectedItems.length) return
+
+    selectedItems.forEach(item => {
+      const chip = el("div", "smart-select-chip")
+      chip.textContent = item.label
+
+      const remove = el("button", "smart-select-chip-remove", "x")
+      remove.type = "button"
+      remove.addEventListener("click", event => {
+        event.stopPropagation()
+        toggleSelect(item.id)
+      })
+
+      chip.appendChild(remove)
+      bar.appendChild(chip)
+    })
+  }
+
+  const renderList = (query = "") => {
+    const list = dom.list
+    list.innerHTML = ""
+
+    if (!state.filtered.length) {
+      const empty = document.createElement("div")
+      empty.textContent = "No results"
+      empty.style.padding = "6px"
+      empty.style.color = "#6b7280"
+      list.appendChild(empty)
+      return
+    }
+
+    state.filtered.forEach((item, index) => {
+      const row = el("div", "smart-select-item")
+      row.dataset.id = item.id
+
+      if (state.selected.has(item.id)) {
+        row.classList.add("is-selected")
+      }
+      if (index === state.activeIndex) {
+        row.classList.add("is-active")
+      }
+
+      const checkbox = document.createElement("input")
+      checkbox.type = "checkbox"
+      checkbox.checked = state.selected.has(item.id)
+
+      const labelWrap = document.createElement("div")
+      labelWrap.appendChild(highlightMatch(item.label, query))
+
+      if (item.subtitle) {
+        const sub = el("span", "smart-select-subtitle", item.subtitle)
+        labelWrap.appendChild(sub)
+      }
+
+      row.appendChild(checkbox)
+      row.appendChild(labelWrap)
+
+      row.addEventListener("click", event => {
+        event.stopPropagation()
+        toggleSelect(item.id)
+
+        if (config.multi && state.isOpen && dom.searchInput) {
+          state.activeIndex = index
+          updateActiveItem(dom, state)
+          dom.searchInput.focus()
+        }
+      })
+
+      list.appendChild(row)
+    })
+
+    updateActiveItem(dom, state)
+  }
+
+  const openDropdown = () => {
     if (state.isOpen) return
     state.isOpen = true
+    state.activeIndex = -1
     positionDropdown(dom)
     dom.dropdown.classList.add("visible")
     dom.control.classList.add("is-open")
     dom.searchInput.focus()
+    updateActiveItem(dom, state)
     emit("open", {})
   }
 
-  function closeDropdown() {
+  const closeDropdown = () => {
     if (!state.isOpen) return
     state.isOpen = false
+    state.activeIndex = -1
     dom.dropdown.classList.remove("visible")
     dom.control.classList.remove("is-open")
+    updateActiveItem(dom, state)
     emit("close", {})
   }
 
-  function toggleDropdown() {
+  const toggleDropdown = () => {
     if (state.isOpen) {
       closeDropdown()
     } else {
@@ -36,26 +150,13 @@ export const createSmartSelect = (options = {}) => {
     }
   }
 
-  function emitChange() {
-    const ids = Array.from(state.selected)
-    const items = state.items
-      .filter(i => state.selected.has(i.id))
-      .map(i => i.raw)
-
-    if (config.onChange) {
-      config.onChange(items)
-    }
-    
-    emit("change", { value: ids, items })
-  }
-
-  function toggleSelect(id) {
+  const toggleSelect = id => {
     if (!id) return
 
-    const picked = state.selected.has(id)
+    const already = state.selected.has(id)
 
     if (config.multi) {
-      if (picked) {
+      if (already) {
         state.selected.delete(id)
       } else {
         state.selected.add(id)
@@ -66,22 +167,20 @@ export const createSmartSelect = (options = {}) => {
       closeDropdown()
     }
 
-    renderState(dom, state)
-    renderSelectedBar(dom, state, toggleSelect)
-    syncListSelection(dom, state)
+    renderState()
+    renderSelectedBar()
     emitChange()
   }
 
-  function clearSelection() {
+  const clearSelection = () => {
     if (!state.selected.size) return
     state.selected.clear()
-    renderState(dom, state)
-    renderSelectedBar(dom, state, toggleSelect)
-    syncListSelection(dom, state)
+    renderState()
+    renderSelectedBar()
     emitChange()
   }
 
-  function applyFilter(term) {
+  const applyFilter = term => {
     const query = term.trim().toLowerCase()
 
     state.filtered = query
@@ -95,7 +194,8 @@ export const createSmartSelect = (options = {}) => {
       })
       : [...state.items]
 
-    renderList(dom, state, config, query, toggleSelect)
+    state.activeIndex = -1
+    renderList(query)
     emit("search", { query })
   }
 
@@ -109,7 +209,9 @@ export const createSmartSelect = (options = {}) => {
     closeDropdown
   })
 
-  renderAll("")
+  renderList("")
+  renderState()
+  renderSelectedBar()
 
   return {
     setItems: items => {
@@ -117,7 +219,10 @@ export const createSmartSelect = (options = {}) => {
       state.items = next
       state.filtered = [...next]
       state.selected.clear()
-      renderAll("")
+      state.activeIndex = -1
+      renderList("")
+      renderState()
+      renderSelectedBar()
       emitChange()
     },
     clearSelection,
@@ -136,13 +241,14 @@ export const createSmartSelect = (options = {}) => {
           }
         })
       }
-      renderState(dom, state)
-      renderSelectedBar(dom, state, toggleSelect)
-      syncListSelection(dom, state)
+      renderState()
+      renderSelectedBar()
       emitChange()
     }
   }
 }
+
+/* config and state */
 
 const createConfig = options => {
   const {
@@ -177,13 +283,19 @@ const createConfig = options => {
 const createState = (config, items) => {
   const normalize = data =>
     (Array.isArray(data) ? data : [])
-      .map(item => ({
-        id: config.getId(item),
-        label: config.getLabel(item),
-        subtitle: config.getSubtitle(item),
-        meta: config.getMeta(item),
-        raw: item
-      }))
+      .map((item, index) => {
+        const baseId = config.getId(item)
+        const id = baseId != null && baseId !== ""
+          ? String(baseId)
+          : "ss-" + index
+        return {
+          id,
+          label: config.getLabel(item),
+          subtitle: config.getSubtitle(item),
+          meta: config.getMeta(item),
+          raw: item
+        }
+      })
       .filter(i => i.id && i.label)
 
   const all = normalize(items)
@@ -197,6 +309,8 @@ const createState = (config, items) => {
     normalize
   }
 }
+
+/* dom helpers */
 
 const el = (tag, className, text) => {
   const node = document.createElement(tag)
@@ -268,6 +382,16 @@ const createDom = (root, config) => {
   }
 }
 
+const positionDropdown = dom => {
+  const rect = dom.control.getBoundingClientRect()
+  const top = rect.bottom + 4 + window.scrollY
+  dom.dropdown.style.minWidth = rect.width + "px"
+  dom.dropdown.style.left = rect.left + "px"
+  dom.dropdown.style.top = top + "px"
+}
+
+/* events and keyboard nav */
+
 const createEmitter = control => (type, detail) => {
   if (!control) return
   control.dispatchEvent(
@@ -278,128 +402,28 @@ const createEmitter = control => (type, detail) => {
   )
 }
 
-const renderState = (dom, state) => {
-  const selected = state.items.filter(i => state.selected.has(i.id))
-
-  if (!selected.length) {
-    dom.placeholder.style.display = "inline"
-    dom.summary.style.display = "none"
-    dom.clearBtn.classList.remove("visible")
-    return
-  }
-
-  dom.placeholder.style.display = "none"
-  dom.summary.style.display = "inline-flex"
-  dom.summary.innerHTML = ""
-
-  const count = el("span", "smart-select-count-pill", String(selected.length))
-  const text = document.createElement("span")
-  text.textContent = "Selected"
-
-  dom.summary.appendChild(count)
-  dom.summary.appendChild(text)
-  dom.clearBtn.classList.add("visible")
-}
-
-const renderSelectedBar = (dom, state, toggleSelect) => {
-  const bar = dom.selectedBar
-  bar.innerHTML = ""
-
-  const selected = state.items.filter(i => state.selected.has(i.id))
-  if (!selected.length) return
-
-  selected.forEach(item => {
-    const chip = el("div", "smart-select-chip")
-    chip.textContent = item.label
-
-    const remove = el("button", "smart-select-chip-remove", "x")
-    remove.type = "button"
-    remove.addEventListener("click", e => {
-      e.stopPropagation()
-      toggleSelect(item.id)
-    })
-
-    chip.appendChild(remove)
-    bar.appendChild(chip)
+const updateActiveItem = (dom, state) => {
+  const rows = Array.from(dom.list.querySelectorAll(".smart-select-item"))
+  rows.forEach((row, index) => {
+    if (index === state.activeIndex) {
+      row.classList.add("is-active")
+      row.scrollIntoView({ block: "nearest" })
+    } else {
+      row.classList.remove("is-active")
+    }
   })
 }
 
-const highlightMatch = (text, query) => {
-  const span = document.createElement("span")
-  if (!query) {
-    span.textContent = text
-    return span
+const moveActive = (dom, state, step) => {
+  const count = state.filtered.length
+  if (!count) return
+
+  if (state.activeIndex === -1) {
+    state.activeIndex = step > 0 ? 0 : count - 1
+  } else {
+    state.activeIndex = (state.activeIndex + step + count) % count
   }
-
-  const lower = text.toLowerCase()
-  const idx = lower.indexOf(query)
-  if (idx === -1) {
-    span.textContent = text
-    return span
-  }
-
-  const before = text.slice(0, idx)
-  const match = text.slice(idx, idx + query.length)
-  const after = text.slice(idx + query.length)
-
-  span.innerHTML =
-    escapeHtml(before) +
-    '<span class="smart-select-mark">' +
-    escapeHtml(match) +
-    "</span>" +
-    escapeHtml(after)
-
-  return span
-}
-
-const escapeHtml = text =>
-  String(text)
-    .replace(/&/g, "&")
-    .replace(/</g, "<")
-    .replace(/>/g, ">")
-
-const renderList = (dom, state, config, query, toggleSelect) => {
-  dom.list.innerHTML = ""
-
-  if (!state.filtered.length) {
-    const empty = document.createElement("div")
-    empty.textContent = "No results"
-    empty.style.padding = "6px"
-    empty.style.color = "#6b7280"
-    dom.list.appendChild(empty)
-    return
-  }
-
-  state.filtered.forEach(item => {
-    const row = el("div", "smart-select-item")
-    row.dataset.id = item.id
-
-    if (state.selected.has(item.id)) {
-      row.classList.add("is-selected")
-    }
-
-    const checkbox = document.createElement("input")
-    checkbox.type = "checkbox"
-    checkbox.checked = state.selected.has(item.id)
-
-    const labelWrap = document.createElement("div")
-    labelWrap.appendChild(highlightMatch(item.label, query))
-
-    if (item.subtitle) {
-      const sub = el("span", "smart-select-subtitle", item.subtitle)
-      labelWrap.appendChild(sub)
-    }
-
-    row.appendChild(checkbox)
-    row.appendChild(labelWrap)
-
-    row.addEventListener("click", e => {
-      e.stopPropagation()
-      toggleSelect(item.id)
-    })
-
-    dom.list.appendChild(row)
-  })
+  updateActiveItem(dom, state)
 }
 
 const syncListSelection = (dom, state) => {
@@ -413,14 +437,6 @@ const syncListSelection = (dom, state) => {
     }
     row.classList.toggle("is-selected", selected)
   })
-}
-
-const positionDropdown = dom => {
-  const rect = dom.control.getBoundingClientRect()
-  const top = rect.bottom + 4 + window.scrollY
-  dom.dropdown.style.minWidth = rect.width + "px"
-  dom.dropdown.style.left = rect.left + "px"
-  dom.dropdown.style.top = top + "px"
 }
 
 const bindEvents = ctx => {
@@ -440,9 +456,26 @@ const bindEvents = ctx => {
 
   dom.control.addEventListener("keydown", event => {
     const key = event.key
+
     if (key === "Enter" || key === " ") {
       event.preventDefault()
       toggleDropdown()
+    } else if (key === "ArrowDown") {
+      event.preventDefault()
+      if (!state.isOpen) {
+        toggleDropdown()
+        if (state.filtered.length) {
+          state.activeIndex = 0
+          updateActiveItem(dom, state)
+        }
+      } else {
+        moveActive(dom, state, 1)
+      }
+    } else if (key === "ArrowUp") {
+      event.preventDefault()
+      if (state.isOpen) {
+        moveActive(dom, state, -1)
+      }
     } else if (key === "Escape") {
       event.preventDefault()
       closeDropdown()
@@ -451,6 +484,30 @@ const bindEvents = ctx => {
 
   dom.searchInput.addEventListener("input", () => {
     applyFilter(dom.searchInput.value)
+  })
+
+  dom.searchInput.addEventListener("keydown", event => {
+    const key = event.key
+
+    if (key === "ArrowDown") {
+      event.preventDefault()
+      moveActive(dom, state, 1)
+    } else if (key === "ArrowUp") {
+      event.preventDefault()
+      moveActive(dom, state, -1)
+    } else if (key === "Enter") {
+      event.preventDefault()
+      if (
+        state.activeIndex >= 0 &&
+        state.activeIndex < state.filtered.length
+      ) {
+        const item = state.filtered[state.activeIndex]
+        toggleSelect(item.id)
+      }
+    } else if (key === "Escape") {
+      event.preventDefault()
+      closeDropdown()
+    }
   })
 
   dom.searchClear.addEventListener("click", event => {
@@ -468,7 +525,11 @@ const bindEvents = ctx => {
 
   document.addEventListener("click", event => {
     const path = event.composedPath()
-    if (state.isOpen && !path.includes(dom.control) && !path.includes(dom.dropdown)) {
+    if (
+      state.isOpen &&
+      !path.includes(dom.control) &&
+      !path.includes(dom.dropdown)
+    ) {
       closeDropdown()
     }
   })
@@ -479,9 +540,50 @@ const bindEvents = ctx => {
     }
   })
 
-  window.addEventListener("scroll", () => {
-    if (state.isOpen) {
-      positionDropdown(dom)
-    }
-  }, { capture: true })
+  window.addEventListener(
+    "scroll",
+    () => {
+      if (state.isOpen) {
+        positionDropdown(dom)
+      }
+    },
+    { capture: true }
+  )
 }
+
+const highlightMatch = (text, query) => {
+  const span = document.createElement("span")
+  if (!query) {
+    span.textContent = text
+    return span
+  }
+
+  const source = String(text)
+  const lower = source.toLowerCase()
+  const q = query.toLowerCase()
+  const idx = lower.indexOf(q)
+
+  if (idx === -1) {
+    span.textContent = source
+    return span
+  }
+
+  const before = source.slice(0, idx)
+  const match = source.slice(idx, idx + q.length)
+  const after = source.slice(idx + q.length)
+
+  span.innerHTML =
+    escapeHtml(before) +
+    '<span class="smart-select-mark">' +
+    escapeHtml(match) +
+    "</span>" +
+    escapeHtml(after)
+
+  return span
+}
+
+const escapeHtml = text =>
+  String(text)
+    .replace(/&/g, "&")
+    .replace(/</g, "<")
+    .replace(/>/g, ">")
